@@ -1,0 +1,68 @@
+/* Styles for Excel Uploader Extension */
+
+.excel-uploader-container {
+    padding: 20px;
+    font-family: "QlikView Sans", sans-serif;
+}
+
+.file-input {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.file-input-label {
+    display: inline-block;
+    padding: 10px 15px;
+    background-color: #009845;
+    color: white;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.file-input-label:hover {
+    background-color: #007d38;
+}
+
+.filename-display {
+    margin-bottom: 15px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    background-color: #f8f8f8;
+    min-height: 20px;
+    font-size: 13px;
+}
+
+.reload-button {
+    padding: 10px 15px;
+    background-color: #465a65;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.reload-button:hover:not([disabled]) {
+    background-color: #2a3840;
+}
+
+.reload-button[disabled] {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.status-message {
+    margin-top: 15px;
+    min-height: 20px;
+    color: #333;
+    font-size: 13px;
+}
