@@ -1,10 +1,7 @@
-/**
- * Properties definition for the Excel Uploader extension
- */
 define([], function() {
     'use strict';
     
-    // Properties panel definition
+    // Define the properties panel for this extension
     return {
         type: "items",
         component: "accordion",
@@ -12,30 +9,42 @@ define([], function() {
             settings: {
                 uses: "settings",
                 items: {
-                    excelSettings: {
+                    storageSettings: {
                         type: "items",
-                        label: "Excel Uploader Settings",
+                        label: "Storage Settings",
                         items: {
-                            variableName: {
-                                ref: "props.variableName",
-                                label: "Excel File Path Variable",
+                            storageFolder: {
+                                ref: "storageFolder",
+                                label: "Storage Folder",
+                                type: "string",
+                                defaultValue: "ExcelUploads",
+                                expression: "optional"
+                            },
+                            filePathVariable: {
+                                ref: "filePathVariable",
+                                label: "File Path Variable",
                                 type: "string",
                                 defaultValue: "vExcelFilePath",
-                                expression: "optional"
+                                expression: "optional",
+                                description: "Variable name that will store the uploaded file path"
+                            }
+                        }
+                    },
+                    reloadSettings: {
+                        type: "items",
+                        label: "Reload Settings",
+                        items: {
+                            autoReload: {
+                                ref: "autoReload",
+                                label: "Auto Reload After Upload",
+                                type: "boolean",
+                                defaultValue: false
                             },
-                            reloadLabel: {
-                                ref: "props.reloadLabel",
-                                label: "Reload Button Text",
-                                type: "string",
-                                defaultValue: "Reload Data",
-                                expression: "optional"
-                            },
-                            uploadLabel: {
-                                ref: "props.uploadLabel",
-                                label: "Upload Button Text",
-                                type: "string",
-                                defaultValue: "Choose Excel File",
-                                expression: "optional"
+                            partialReload: {
+                                ref: "partialReload",
+                                label: "Use Partial Reload",
+                                type: "boolean",
+                                defaultValue: true
                             }
                         }
                     }
