@@ -91,7 +91,7 @@ function($, qlik, css, properties, template) {
                     contentType: false,
                     processData: false,
                     headers: {
-                        'qlik-csrf-token': qlik.getGlobal().session.attributes.csrfToken
+                        'qlik-csrf-token': sessionStorage.getItem('X-Qlik-Csrf-Token') || document.cookie.split(';').find(c => c.trim().startsWith('X-Qlik-Csrf-Token=')).split('=')[1]
                     },
                     success: function(data) {
                         $scope.uploading = false;
