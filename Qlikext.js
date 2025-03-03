@@ -1,28 +1,29 @@
-/**
- * QlikSense Excel Uploader Extension
- * 
- * This extension allows users to upload Excel files and reload Qlik data.
- * When a user uploads a file and clicks reload, the data will be updated 
- * in the Qlik app, refreshing all connected visualizations.
- */
+/*
+* QlikSense Excel Uploader Extension
+* This extension allows users to upload Excel files, store them in QlikSense folder structure,
+* and trigger a reload to update the application with the new data.
+*/
 
 define([
     "jquery",
     "qlik",
-    "text!./style.css",
-    "./properties"
-], function($, qlik, cssContent, properties) {
+    "css!./style.css",
+    "./properties",
+    "text!./template.html"
+],
+function($, qlik, css, properties, template) {
     'use strict';
 
-    // Add the CSS to the document
-    $("<style>").html(cssContent).appendTo("head");
-
     return {
-        // Definition of the properties panel
+        template: template,
+        support: {
+            snapshot: false,
+            export: false,
+            exportData: false
+        },
         definition: properties,
-        
-        // Initial properties
         initialProperties: {
+            version: 1.0,
             qHyperCubeDef: {
                 qDimensions: [],
                 qMeasures: [],
@@ -32,104 +33,129 @@ define([
                 }]
             }
         },
-        
-        // Property panel
-        support: {
-            snapshot: false,
-            export: false,
-            exportData: false
-        },
-        
-        // Paint method - renders the extension
         paint: function($element, layout) {
-            // Get the current app
-            var app = qlik.currApp();
+            // Return the promise to render the extension
+            return qlik.Promise.resolve();
+        },
+        controller: ['$scope', '$element', function($scope, $element) {
+            // Get the app reference
+            $scope.app = qlik.currApp();
             
-            // Clear the element
-            $element.empty();
+            // Initialize variables
+            $scope.fileName = "";
+            $scope.uploading = false;
+            $scope.storageFolder = $scope.layout.storageFolder || "ExcelUploads";
+            $scope.uploadSuccess = false;
+            $scope.uploadError = false;
+            $scope.errorMessage = "";
+            $scope.reloading = false;
+            $scope.reloadSuccess = false;
+            $scope.reloadError = false;
             
-            // Create container for the uploader
-            var $container = $('<div class="excel-uploader-container">');
-            
-            // Create file input and label
-            var $fileInputLabel = $('<label for="excelFileInput" class="file-input-label">Choose Excel File</label>');
-            var $fileInput = $('<input type="file" id="excelFileInput" class="file-input" accept=".xlsx, .xls">');
-            
-            // Create filename display element
-            var $filenameDisplay = $('<div class="filename-display">No file selected</div>');
-            
-            // Create reload button
-            var $reloadButton = $('<button class="reload-button" disabled>Reload Data</button>');
-            
-            // Create status message
-            var $statusMessage = $('<div class="status-message"></div>');
-            
-            // Add event listener for file selection
-            $fileInput.on('change', function(e) {
-                var fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
-                $filenameDisplay.text(fileName);
-                
-                if (e.target.files[0]) {
-                    $reloadButton.prop('disabled', false);
-                    $statusMessage.text('File selected. Click "Reload Data" to update the app.');
-                } else {
-                    $reloadButton.prop('disabled', true);
-                    $statusMessage.text('');
+            // Handle file selection
+            $scope.handleFileSelect = function(evt) {
+                var files = evt.target.files;
+                if (files.length > 0) {
+                    $scope.selectedFile = files[0];
+                    $scope.fileName = files[0].name;
+                    $scope.$apply();
                 }
-            });
+            };
             
-            // Add event listener for reload button
-            $reloadButton.on('click', function() {
-                var file = document.getElementById('excelFileInput').files[0];
-                if (!file) {
-                    $statusMessage.text('Please select a file first.');
+            // Upload and store the file
+            $scope.uploadFile = function() {
+                if (!$scope.selectedFile) {
+                    $scope.uploadError = true;
+                    $scope.errorMessage = "Please select a file first";
                     return;
                 }
                 
-                $statusMessage.text('Uploading file and reloading data...');
-                $reloadButton.prop('disabled', true);
+                $scope.uploading = true;
+                $scope.uploadSuccess = false;
+                $scope.uploadError = false;
                 
-                // Create FormData object
+                // Create FormData object for the file upload
                 var formData = new FormData();
-                formData.append('file', file);
+                formData.append('file', $scope.selectedFile);
+                formData.append('folder', $scope.storageFolder);
                 
-                // Get the app ID
+                // Get the Qlik server base URL
+                var baseUrl = window.location.origin;
                 var appId = qlik.currApp().id;
                 
-                // Set the variable for the Excel file path
-                app.variable.setContent('vExcelFilePath', file.name)
-                    .then(function() {
-                        // This is where we would normally trigger a reload
-                        // Since we can't directly reload from extension, we'll use the engineAPI
-                        return app.doReload()
-                            .then(function() {
-                                // After reload, save the app
-                                return app.doSave();
+                // Use the QlikSense REST API for file upload
+                $.ajax({
+                    url: baseUrl + '/api/v1/file-upload',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    headers: {
+                        'qlik-csrf-token': qlik.getGlobal().session.attributes.csrfToken
+                    },
+                    success: function(data) {
+                        $scope.uploading = false;
+                        $scope.uploadSuccess = true;
+                        
+                        // Set a variable in Qlik with the file path
+                        var filePath = $scope.storageFolder + "/" + $scope.fileName;
+                        $scope.app.variable.setContent('vExcelFilePath', filePath);
+                        
+                        $scope.$apply();
+                    },
+                    error: function(error) {
+                        $scope.uploading = false;
+                        $scope.uploadError = true;
+                        $scope.errorMessage = "Error uploading file: " + (error.responseText || "Unknown error");
+                        $scope.$apply();
+                    }
+                });
+            };
+            
+            // Trigger a reload of the app
+            $scope.reloadApp = function() {
+                if (!$scope.uploadSuccess) {
+                    $scope.reloadError = true;
+                    $scope.errorMessage = "Please upload a file first";
+                    return;
+                }
+                
+                $scope.reloading = true;
+                $scope.reloadSuccess = false;
+                $scope.reloadError = false;
+                
+                // Trigger a partial reload of the app
+                $scope.app.doReload().then(function(success) {
+                    $scope.reloading = false;
+                    if (success) {
+                        $scope.reloadSuccess = true;
+                        
+                        // After successful reload, refresh all objects in the app
+                        qlik.callRepository('/qrs/app/full', 'POST', { id: $scope.app.id }).then(function() {
+                            // Refresh all visualizations
+                            qlik.getObjectList().then(function(list) {
+                                list.forEach(function(item) {
+                                    qlik.get(item.id).then(function(obj) {
+                                        obj.refreshView();
+                                    });
+                                });
                             });
-                    })
-                    .then(function() {
-                        $statusMessage.text('Data successfully reloaded!');
-                        setTimeout(function() {
-                            $statusMessage.text('');
-                        }, 5000);
-                    })
-                    .catch(function(error) {
-                        $statusMessage.text('Error: ' + error.message);
-                        $reloadButton.prop('disabled', false);
-                    });
-            });
+                        });
+                    } else {
+                        $scope.reloadError = true;
+                        $scope.errorMessage = "Error reloading the app";
+                    }
+                    $scope.$apply();
+                }).catch(function(error) {
+                    $scope.reloading = false;
+                    $scope.reloadError = true;
+                    $scope.errorMessage = "Error reloading the app: " + (error.message || "Unknown error");
+                    $scope.$apply();
+                });
+            };
             
-            // Append all elements to the container
-            $container.append($fileInputLabel);
-            $container.append($fileInput);
-            $container.append($filenameDisplay);
-            $container.append($reloadButton);
-            $container.append($statusMessage);
-            
-            // Append the container to the element
-            $element.append($container);
-            
-            return qlik.Promise.resolve();
-        }
+            // Initialize file input element
+            $element.find('#fileInput').on('change', $scope.handleFileSelect);
+        }]
     };
 });
